@@ -41,48 +41,51 @@
 
 #if defined(STM32F4)
 /* untested, should go into libopencm3 */
-const clock_scale_t hse_24mhz_3v3[CLOCK_3V3_END] = {
-	{ /* 48MHz */
-		.pllm = 24,
-		.plln = 96,
-		.pllp = 2,
-		.pllq = 2,
-		.hpre = RCC_CFGR_HPRE_DIV_NONE,
-		.ppre1 = RCC_CFGR_PPRE_DIV_4,
-		.ppre2 = RCC_CFGR_PPRE_DIV_2,
-		.power_save = 1,
-		.flash_config = FLASH_ACR_ICE | FLASH_ACR_DCE |
-				FLASH_ACR_LATENCY_3WS,
-		.apb1_frequency = 12000000,
-		.apb2_frequency = 24000000,
-	},
-	{ /* 120MHz */
-		.pllm = 24,
-		.plln = 240,
-		.pllp = 2,
-		.pllq = 5,
-		.hpre = RCC_CFGR_HPRE_DIV_NONE,
-		.ppre1 = RCC_CFGR_PPRE_DIV_4,
-		.ppre2 = RCC_CFGR_PPRE_DIV_2,
-		.power_save = 1,
-		.flash_config = FLASH_ACR_ICE | FLASH_ACR_DCE |
-				FLASH_ACR_LATENCY_3WS,
-		.apb1_frequency = 30000000,
-		.apb2_frequency = 60000000,
-	},
-	{ /* 168MHz */
-		.pllm = 24,
-		.plln = 336,
-		.pllp = 2,
-		.pllq = 7,
-		.hpre = RCC_CFGR_HPRE_DIV_NONE,
-		.ppre1 = RCC_CFGR_PPRE_DIV_4,
-		.ppre2 = RCC_CFGR_PPRE_DIV_2,
-		.flash_config = FLASH_ACR_ICE | FLASH_ACR_DCE |
-				FLASH_ACR_LATENCY_5WS,
-		.apb1_frequency = 42000000,
-		.apb2_frequency = 84000000,
-	},
+const struct rcc_clock_scale rcc_hse_24mhz_3v3[RCC_CLOCK_3V3_END] = {
+  { /* 48MHz */
+    .pllm = 24,
+    .plln = 96,
+    .pllp = 2,
+    .pllq = 2,
+    .hpre = RCC_CFGR_HPRE_DIV_NONE,
+    .ppre1 = RCC_CFGR_PPRE_DIV_4,
+    .ppre2 = RCC_CFGR_PPRE_DIV_2,
+    .power_save = 1,
+    .flash_config = FLASH_ACR_ICE | FLASH_ACR_DCE |
+    FLASH_ACR_LATENCY_3WS,
+    .ahb_frequency  = 48000000,
+    .apb1_frequency = 12000000,
+    .apb2_frequency = 24000000,
+  },
+  { /* 120MHz */
+    .pllm = 24,
+    .plln = 240,
+    .pllp = 2,
+    .pllq = 5,
+    .hpre = RCC_CFGR_HPRE_DIV_NONE,
+    .ppre1 = RCC_CFGR_PPRE_DIV_4,
+    .ppre2 = RCC_CFGR_PPRE_DIV_2,
+    .power_save = 1,
+    .flash_config = FLASH_ACR_ICE | FLASH_ACR_DCE |
+    FLASH_ACR_LATENCY_3WS,
+    .ahb_frequency  = 120000000,
+    .apb1_frequency = 30000000,
+    .apb2_frequency = 60000000,
+  },
+  { /* 168MHz */
+    .pllm = 24,
+    .plln = 336,
+    .pllp = 2,
+    .pllq = 7,
+    .hpre = RCC_CFGR_HPRE_DIV_NONE,
+    .ppre1 = RCC_CFGR_PPRE_DIV_4,
+    .ppre2 = RCC_CFGR_PPRE_DIV_2,
+    .flash_config = FLASH_ACR_ICE | FLASH_ACR_DCE |
+    FLASH_ACR_LATENCY_5WS,
+    .ahb_frequency  = 168000000,
+    .apb1_frequency = 42000000,
+    .apb2_frequency = 84000000,
+  },
 };
 #endif
 
@@ -102,7 +105,7 @@ void mcu_arch_init(void)
   rcc_clock_setup_in_hse_8mhz_out_72mhz();
 #elif defined(STM32F4)
   PRINT_CONFIG_MSG("Using 8MHz external clock to PLL it to 168MHz.")
-  rcc_clock_setup_hse_3v3(&hse_8mhz_3v3[CLOCK_3V3_168MHZ]);
+  rcc_clock_setup_hse_3v3(&rcc_hse_8mhz_3v3[RCC_CLOCK_3V3_168MHZ]);
 #endif
 #elif EXT_CLK == 12000000
 #if defined(STM32F1)
@@ -110,22 +113,22 @@ void mcu_arch_init(void)
   rcc_clock_setup_in_hse_12mhz_out_72mhz();
 #elif defined(STM32F4)
   PRINT_CONFIG_MSG("Using 12MHz external clock to PLL it to 168MHz.")
-  rcc_clock_setup_hse_3v3(&hse_12mhz_3v3[CLOCK_3V3_168MHZ]);
+  rcc_clock_setup_hse_3v3(&rcc_hse_12mhz_3v3[RCC_CLOCK_3V3_168MHZ]);
 #endif
 #elif EXT_CLK == 16000000
 #if defined(STM32F4)
   PRINT_CONFIG_MSG("Using 16MHz external clock to PLL it to 168MHz.")
-  rcc_clock_setup_hse_3v3(&hse_16mhz_3v3[CLOCK_3V3_168MHZ]);
+  rcc_clock_setup_hse_3v3(&rcc_hse_16mhz_3v3[RCC_CLOCK_3V3_168MHZ]);
 #endif
 #elif EXT_CLK == 24000000
 #if defined(STM32F4)
   PRINT_CONFIG_MSG("Using 24MHz external clock to PLL it to 168MHz.")
-  rcc_clock_setup_hse_3v3(&hse_24mhz_3v3[CLOCK_3V3_168MHZ]);
+  rcc_clock_setup_hse_3v3(&rcc_hse_24mhz_3v3[RCC_CLOCK_3V3_168MHZ]);
 #endif
 #elif EXT_CLK == 25000000
 #if defined(STM32F4)
   PRINT_CONFIG_MSG("Using 25MHz external clock to PLL it to 168MHz.")
-  rcc_clock_setup_hse_3v3(&hse_25mhz_3v3[CLOCK_3V3_168MHZ]);
+  rcc_clock_setup_hse_3v3(&rcc_hse_25mhz_3v3[RCC_CLOCK_3V3_168MHZ]);
 #endif
 #else
 #error EXT_CLK is either set to an unsupported frequency or not defined at all. Please check!
@@ -191,8 +194,7 @@ uint32_t timer_get_frequency(uint32_t timer_peripheral)
 #ifdef TIM11
     case TIM11:
 #endif
-      if (!rcc_get_ppre2())
-      {
+      if (!rcc_get_ppre2()) {
         /* without APB2 prescaler, runs at APB2 freq */
         return rcc_apb2_frequency;
       } else {
@@ -216,8 +218,7 @@ uint32_t timer_get_frequency(uint32_t timer_peripheral)
 #ifdef TIM14
     case TIM14:
 #endif
-      if (!rcc_get_ppre1())
-      {
+      if (!rcc_get_ppre1()) {
         /* without APB1 prescaler, runs at APB1 freq */
         return rcc_apb1_frequency;
       } else {
