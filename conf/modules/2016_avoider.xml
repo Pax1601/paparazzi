@@ -1,0 +1,16 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="2016_avoider">
+  <doc>
+    <description>TO DO</description>
+  </doc>
+  <header>
+    <file name="2016_avoider.h"/>
+  </header>
+  <init fun="init()"/>
+  <periodic fun="periodic()" freq="4"/>
+  <makefile>
+    <file name="2016_avoider.c"/>
+  </makefile>
+</module>
+
