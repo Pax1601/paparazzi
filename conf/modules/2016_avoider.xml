@@ -11,6 +11,17 @@
   <periodic fun="periodic()" freq="4"/>
   <makefile>
     <file name="2016_avoider.c"/>
+
+    <file name="lib/world2cam/roots.c"/>
+<file name="lib/world2cam/rtGetInf.c"/>
+<file name="lib/world2cam/rtGetNaN.c"/>
+<file name="lib/world2cam/rt_nonfinite.c"/>
+<file name="lib/world2cam/sqrt.c"/>
+<file name="lib/world2cam/world2cam.c"/>
+<file name="lib/world2cam/world2cam_initialize.c"/>
+<file name="lib/world2cam/world2cam_rtwutil.c"/>
+<file name="lib/world2cam/world2cam_terminate.c"/>
+
   </makefile>
 </module>
 
