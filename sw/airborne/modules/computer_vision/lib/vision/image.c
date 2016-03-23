@@ -496,6 +496,7 @@ void image_draw_line(struct image_t *img, struct point_t *from, struct point_t *
   if (delta_x > 0) { incx = pixel_width; }
   else if (delta_x == 0) { incx = 0; }
   else { incx = -pixel_width; }
+  
 
   if (delta_y > 0) { incy = 1; }
   else if (delta_y == 0) { incy = 0; }
