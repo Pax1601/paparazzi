@@ -510,14 +510,14 @@ void image_draw_line(struct image_t *img, struct point_t *from, struct point_t *
 
   /* draw the line */
   for (uint16_t t = 0; /* starty >= 0 && */ starty < img->h && /* startx >= 0 && */ startx < img->w && t <= distance + 1; t++) {
-    img_buf[img->w * pixel_width * starty + startx * pixel_width] = (t <= 3) ? 0 : 255;
+    img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width] = (t <= 3) ? 0 : 128;
 
     if (img->type == IMAGE_YUV422) {
-      img_buf[img->w * pixel_width * starty + startx * pixel_width + 1] = 255;
+      img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 1] = 149;
 
       if (startx + 1 < img->w) {
-        img_buf[img->w * pixel_width * starty + startx * pixel_width + 2] = (t <= 3) ? 0 : 255;
-        img_buf[img->w * pixel_width * starty + startx * pixel_width + 3] = 255;
+        img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 2] = (t <= 3) ? 0 : 21;
+        img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 3] = 149;
       }
     }
 
@@ -531,5 +531,135 @@ void image_draw_line(struct image_t *img, struct point_t *from, struct point_t *
       yerr -= distance;
       starty += incy;
     }
+  }
+}
+
+void image_draw_line_color(struct image_t *img, struct point_t *from, struct point_t *to, uint8_t y, uint8_t u, uint8_t v)
+{
+  int xerr = 0, yerr = 0;
+  uint8_t *img_buf = (uint8_t *)img->buf;
+  uint8_t pixel_width = (img->type == IMAGE_YUV422) ? 2 : 1;
+  uint16_t startx = from->x;
+  uint16_t starty = from->y;
+
+  /* compute the distances in both directions */
+  int32_t delta_x = to->x - from->x;
+  int32_t delta_y = to->y - from->y;
+
+  /* Compute the direction of the increment,
+     an increment of 0 means either a horizontal or vertical
+     line.
+  */
+  int8_t incx, incy;
+  if (delta_x > 0) { incx = 1; }
+  else if (delta_x == 0) { incx = 0; }
+  else { incx = -1; }
+
+  if (delta_y > 0) { incy = 1; }
+  else if (delta_y == 0) { incy = 0; }
+  else { incy = -1; }
+
+  /* determine which distance is greater */
+  uint16_t distance = 0;
+  delta_x = abs(delta_x);
+  delta_y = abs(delta_y);
+  if (delta_x > delta_y) { distance = delta_x * 20; }
+  else { distance = delta_y * 20; }
+
+  /* draw the line */
+  for (uint16_t t = 0; /* starty >= 0 && */ starty < img->h && /* startx >= 0 && */ startx < img->w && t <= distance + 1; t++) {
+    img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width] = (t <= 3) ? 0 : u;
+
+    if (img->type == IMAGE_YUV422) {
+      img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 1] = y;
+
+      if (startx + 1 < img->w) {
+        img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 2] = (t <= 3) ? 0 : v;
+        img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 3] = y;
+      }
+    }
+
+    xerr += delta_x;
+    yerr += delta_y;
+    if (xerr > distance) {
+      xerr -= distance;
+      startx += incx;
+    }
+    if (yerr > distance) {
+      yerr -= distance;
+      starty += incy;
+    }
+  }
+}
+
+void image_extract_points_from_line(struct image_t *img, struct point_t *from, struct point_t *to, struct pixels_array *output, uint32_t *index)
+{
+
+  int xerr = 0, yerr = 0;
+  uint8_t *img_buf = (uint8_t *)img->buf;
+  uint8_t pixel_width = (img->type == IMAGE_YUV422) ? 2 : 1;
+  uint16_t startx = from->x;
+  uint16_t starty = from->y;
+
+  /* compute the distances in both directions */
+  int32_t delta_x = to->x - from->x;
+  int32_t delta_y = to->y - from->y;
+
+  /* Compute the direction of the increment,
+     an increment of 0 means either a horizontal or vertical
+     line.
+  */
+  int8_t incx, incy;
+  if (delta_x > 0) { incx = 1; }
+  else if (delta_x == 0) { incx = 0; }
+  else { incx = -1; }
+
+  if (delta_y > 0) { incy = 1; }
+  else if (delta_y == 0) { incy = 0; }
+  else { incy = -1; }
+
+  /* determine which distance is greater */
+  uint16_t distance = 0;
+  delta_x = abs(delta_x);
+  delta_y = abs(delta_y);
+  if (delta_x > delta_y) { distance = delta_x * 20; }
+  else { distance = delta_y * 20; }
+
+  /* draw the line */
+  for (uint32_t t = 0; /* starty >= 0 && */ starty < img->h && /* startx >= 0 && */ startx < img->w && t <= distance + 1; t++) {
+	
+    *(output->pixels + *index) = (t <= 3) ? 0 : img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width];
+
+    if (img->type == IMAGE_YUV422) {
+      *(output->pixels + *index + 1) = img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 1];
+
+      if (startx + 1 < img->w) {
+	*(output->pixels + *index + 2) = (t <= 3) ? 0 : img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 2];
+	*(output->pixels + *index + 3) = img_buf[img->w * pixel_width * starty + (startx - startx % pixel_width) * pixel_width + 3];
+	
+      }
+    }
+    
+    *(output->x + (*index) / 4) = startx; 
+    *(output->y + (*index) / 4) = starty;   
+
+    xerr += delta_x;
+    yerr += delta_y;
+
+	if (xerr > distance || yerr > distance){
+		(*index) += 4;
+	}
+	if (xerr > distance) {
+	xerr -= distance;
+	startx += incx;
+
+	}
+	if (yerr > distance) {
+	yerr -= distance;
+	starty += incy;
+
+	}
+
+	
   }
 }

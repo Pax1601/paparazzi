@@ -23,12 +23,12 @@ int32_t incrementForAvoidance;
 
 void orange_avoider_init() {
 	// Initialise the variables of the colorfilter to accept orange
-	color_lum_min=0;
-	color_lum_max=131;
-	color_cb_min=93;
-	color_cb_max=255;
-	color_cr_min=134;
-	color_cr_max=255;
+	color_lum_min=120;
+	color_lum_max=255;
+	color_cb_min=90;
+	color_cb_max=160;
+	color_cr_min=90;
+	color_cr_max=160;
 	// Initialise random values
 	srand(time(NULL));
 	chooseRandomIncrementAvoidance();

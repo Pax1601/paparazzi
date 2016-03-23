@@ -29,6 +29,7 @@
 
 #include "std.h"
 #include <sys/time.h>
+#include <stdio.h>
 
 /* The different type of images we currently support */
 enum image_type {
@@ -63,6 +64,12 @@ struct flow_t {
   int16_t flow_y;             ///< The y direction flow in subpixels
 };
 
+struct pixels_array {
+	uint8_t *pixels;
+        uint8_t *x;
+        uint8_t *y;
+};
+
 /* Usefull image functions */
 void image_create(struct image_t *img, uint16_t width, uint16_t height, enum image_type type);
 void image_free(struct image_t *img);
@@ -79,5 +86,7 @@ int32_t image_multiply(struct image_t *img_a, struct image_t *img_b, struct imag
 void image_show_points(struct image_t *img, struct point_t *points, uint16_t points_cnt);
 void image_show_flow(struct image_t *img, struct flow_t *vectors, uint16_t points_cnt, uint8_t subpixel_factor);
 void image_draw_line(struct image_t *img, struct point_t *from, struct point_t *to);
+void image_draw_line_color(struct image_t *img, struct point_t *from, struct point_t *to, uint8_t y, uint8_t u, uint8_t v);
+void image_extract_points_from_line(struct image_t *img, struct point_t *from, struct point_t *to, struct pixels_array *output, uint32_t *index);
 
 #endif

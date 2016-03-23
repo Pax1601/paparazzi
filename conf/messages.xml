@@ -2166,6 +2166,18 @@
   <!-- 251 is free -->
   <!-- 252 is free -->
 
+  <message name="2016_AVOIDER" id = "251">
+      
+        <field name = "state"                 type = "uint8"/>   
+        <field name = "detected_obstacles"    type = "uint8"/>
+        <field name = "obstacle_internal"     type = "uint8"/>
+        <field name = "obstacle_external"     type = "uint8"/> 
+	<field name = "ground_y"              type = "double"/>
+        <field name = "ground_u"              type = "double"/>
+        <field name = "ground_v"              type = "double"/>
+        
+  </message>
+
   <message name="I2C_ERRORS" id="253">
     <field name="wd_reset_cnt"                type="uint16"/>
     <field name="queue_full_cnt"              type="uint16"/>
@@ -2206,6 +2218,9 @@
     <field name="V_East" type="double"/>
     <field name="V_Down" type="double"/>
   </message>
+
+  
+
 
 </msg_class>
 
@@ -2864,6 +2879,8 @@
     <field name="longs" type="string" format="csv"/>
     <field name="values" type="string" format="csv"/>
   </message>
+
+
 </msg_class>
 
 

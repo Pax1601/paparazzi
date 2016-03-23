@@ -38,11 +38,44 @@
   </sectors>
   <exceptions>
     <exception cond="!InsideCyberZoo(GetPosX(), GetPosY())" deroute="Standby"/>
+    <!--
     <exception cond="datalink_time > 2" deroute="Land here"/>
     <exception cond="electrical.bat_low && !(nav_block == IndexOfBlock('Land')) && !(nav_block == IndexOfBlock('Flare')) && !(nav_block == IndexOfBlock('Landed'))" deroute="Land"/>
     <exception cond="electrical.bat_critical && !(nav_block == IndexOfBlock('Land')) && !(nav_block == IndexOfBlock('Flare')) && !(nav_block == IndexOfBlock('Landed'))" deroute="Land here"/>
+    -->
   </exceptions>
   <blocks>
+  
+  <block name="Add corner">
+      <call fun="add_corner_point()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+
+    <block name="Reset corners">
+      <call fun="reset_corners()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+
+    <block name="Use saved corners">
+      <call fun="use_saved_corners()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+
+    <block name="Reset heading">
+      <call fun="reset_heading()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+
+    <block name="Start ground calibration">
+      <call fun="start_ground_color_calibration()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+
+    <block name="Pick ground color">
+      <call fun="calibrate_ground_color()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+  
     <block name="Wait GPS">
       <call fun="NavKillThrottle()"/>
       <while cond="!GpsFixValid()"/>
@@ -51,6 +84,7 @@
       <while cond="LessThan(NavBlockTime(), 2)"/>
       <call fun="NavSetAltitudeReferenceHere()"/>
     </block>
+
     <block name="Holding point">
       <call fun="NavKillThrottle()"/>
       <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
@@ -74,13 +108,17 @@
     <block name="StayGoal">
       <go wp="GOAL"/>
       <exception cond="block_time > 1" deroute="MoveGoalForward"/>
+      <!--
       <exception cond="!safeToGoForwards" deroute="ChangeHeading"/>
+      -->
       <exception cond="!InsideObstacleZone(GetPosX(),GetPosY())" deroute="PrepareObstacleRun"/>
     </block>
     <block name="MoveGoalForward">
       <call fun="moveWaypointForwards(WP_GOAL,3.0)"/>
       <deroute block="StayGoal"/>
+      <!--
       <exception cond="!safeToGoForwards" deroute="ChangeHeading"/>
+      -->
       <exception cond="!InsideObstacleZone(WaypointX(WP_GOAL),WaypointY(WP_GOAL))" deroute="PrepareObstacleRun"/>
     </block>
     <block name="ChangeHeading">
@@ -90,7 +128,9 @@
         <call fun="moveWaypointForwards(WP_GOAL,3.0)"/>
         <go wp="STDBY"/>
       </while>
+      <!--
       <exception cond="safeToGoForwards" deroute="StayGoal"/>
+      -->
     </block>
     <block name="PrepareObstacleRun">
       <call fun="NavSetWaypointHere(WP_STDBY)"/>
