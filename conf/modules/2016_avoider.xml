@@ -1,0 +1,46 @@
+<!DOCTYPE module SYSTEM "module.dtd">
+
+<module name="2016_avoider">
+  <doc>
+    <description> TODO </description>
+    <define name="VIDEO_STREAM" value="TRUE|FALSE" />
+  </doc>
+  <settings>
+    <dl_settings>
+      <dl_settings name="2016_avoider">
+        <dl_setting min="0" max="127" step="1" module="2016_avoider/2016_avoider" var="y_width" shortname="Y WIDTH" type="float" param="Y_FILTER_WIDTH" persistent="true"/>
+	<dl_setting min="0" max="127" step="1" module="2016_avoider/2016_avoider" var="u_width" shortname="U WIDTH" type="float" param="U_FILTER_WIDTH" persistent="true"/>
+	<dl_setting min="0" max="127" step="1" module="2016_avoider/2016_avoider" var="v_width" shortname="V WIDTH" type="float" param="V_FILTER_WIDTH" persistent="true"/>
+        <dl_setting min="0" max="255" step="1" module="2016_avoider/2016_avoider" var="ground_y" shortname="Y" type="float" param="Y_FILTER" persistent="true"/>
+	<dl_setting min="0" max="255" step="1" module="2016_avoider/2016_avoider" var="ground_u" shortname="U" type="float" param="U_FILTER" persistent="true"/>
+	<dl_setting min="0" max="255" step="1" module="2016_avoider/2016_avoider" var="ground_v" shortname="V" type="float" param="V_FILTER" persistent="true"/>
+        
+
+        <dl_setting min="1" max="5" step="1" module="2016_avoider/2016_avoider" var="r_gain" shortname="RED GAIN" type="uint8" param="R_GAIN" persistent="true"/>
+        <dl_setting min="1" max="5" step="1" module="2016_avoider/2016_avoider" var="g_gain" shortname="GREEN GAIN" type="uint8" param="G_GAIN" persistent="true"/>
+        <dl_setting min="1" max="5" step="1" module="2016_avoider/2016_avoider" var="b_gain" shortname="BLUE GAIN" type="uint8" param="B_GAIN" persistent="true"/>
+        <dl_setting min="1" max="5" step="1" module="2016_avoider/2016_avoider" var="t_gain" shortname="TOTAL GAIN" type="uint8" param="T_GAIN" persistent="true"/>
+        
+      </dl_settings>
+    </dl_settings>
+  </settings>
+  <header>
+    <file name="2016_avoider.h"/>
+  </header>
+  <init fun="init()"/>
+  <periodic fun="periodic()" freq="4"/>
+  <makefile>
+	<file name="2016_avoider.c"/>
+	<file name="lib/world2cam/roots.c"/>
+	<file name="lib/world2cam/rtGetInf.c"/>
+	<file name="lib/world2cam/rtGetNaN.c"/>
+	<file name="lib/world2cam/rt_nonfinite.c"/>
+	<file name="lib/world2cam/sqrt.c"/>
+	<file name="lib/world2cam/world2cam.c"/>
+	<file name="lib/world2cam/world2cam_initialize.c"/>
+	<file name="lib/world2cam/world2cam_rtwutil.c"/>
+	<file name="lib/world2cam/world2cam_terminate.c"/>
+
+  </makefile>
+</module>
+

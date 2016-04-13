@@ -1,0 +1,144 @@
+<!DOCTYPE flight_plan SYSTEM "../flight_plan.dtd">
+
+<flight_plan alt="1.5" ground_alt="0" lat0="51.990634" lon0="4.376789" max_dist_from_home="8" name="Bebop avoid orange TU Delft Cyberzoo" security_height="0.4">
+  <header>
+#include "autopilot.h"
+#include "subsystems/ahrs.h"
+#include "subsystems/electrical.h"
+#include "subsystems/datalink/datalink.h"
+</header>
+  <waypoints>
+    <waypoint name="HOME" x="0.0" y="0.0"/>
+    <waypoint name="CLIMB" x="1.2" y="-0.6"/>
+    <waypoint name="GOAL" x="2.0" y="2.0"/>
+    <waypoint name="HOVER" x="-0.7" y="-0.8"/>
+    <waypoint name="LAND" x="0.8" y="-1.7"/>
+    <waypoint name="LEFT" x="0.8" y="-1.7"/>
+    <waypoint name="RIGHT" x="0.8" y="-1.7"/>
+    <waypoint name="CENTER" x="0.8" y="-1.7"/>
+    <waypoint lat="51.990621" lon="4.376855" name="_CZ1"/>
+    <waypoint lat="51.990592" lon="4.376778" name="_CZ2"/>
+    <waypoint lat="51.990641" lon="4.376728" name="_CZ3"/>
+    <waypoint lat="51.990667" lon="4.376806" name="_CZ4"/>
+    <waypoint lat="51.990624" lon="4.376845" name="_OZ1"/>
+    <waypoint lat="51.990601" lon="4.376782" name="_OZ2"/>
+    <waypoint lat="51.990638" lon="4.376748" name="_OZ3"/>
+    <waypoint lat="51.990657" lon="4.376804" name="_OZ4"/>
+  </waypoints>
+  <sectors>
+    <sector color="red" name="CyberZoo">
+      <corner name="_CZ1"/>
+      <corner name="_CZ2"/>
+      <corner name="_CZ3"/>
+      <corner name="_CZ4"/>
+    </sector>
+    <sector color="#FF9922" name="ObstacleZone">
+      <corner name="_OZ1"/>
+      <corner name="_OZ2"/>
+      <corner name="_OZ3"/>
+      <corner name="_OZ4"/>
+    </sector>
+  </sectors>
+  <exceptions>
+     <!--
+    <exception cond="datalink_time > 2 && !(nav_block == IndexOfBlock('Land')) && !(nav_block == IndexOfBlock('Flare')) && !(nav_block == IndexOfBlock('Landed'))" deroute="Land here"/>
+      -->
+    <exception cond="electrical.bat_low && !(nav_block == IndexOfBlock('Land')) && !(nav_block == IndexOfBlock('Flare')) && !(nav_block == IndexOfBlock('Landed'))" deroute="Land here"/>
+    <exception cond="electrical.bat_critical && !(nav_block == IndexOfBlock('Land')) && !(nav_block == IndexOfBlock('Flare')) && !(nav_block == IndexOfBlock('Landed'))" deroute="Land here"/>
+  </exceptions>
+  <blocks>
+    <block name="Wait GPS">
+      <call fun="NavKillThrottle()"/>
+      <while cond="!GpsFixValid()"/>
+    </block>
+    <block name="Geo init">
+      <while cond="LessThan(NavBlockTime(), 2)"/>
+      <call fun="NavSetAltitudeReferenceHere()"/>
+    </block>
+    <block name="Holding point">
+      <call fun="NavKillThrottle()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+    <block key="r" name="Start Engine">
+      <call fun="NavResurrect()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+    <block key="t" name="Takeoff" strip_button="Takeoff" strip_icon="takeoff.png">
+      <exception cond="stateGetPositionEnu_f()->z > 1.4" deroute="Hover"/>
+      <call fun="NavSetWaypointHere(WP_CLIMB)"/>
+      <stay climb="nav_climb_vspeed" vmode="climb" wp="CLIMB"/>
+    </block>
+    <block key="s" name="Hover" strip_button="Hover" strip_icon="home.png">
+      <call fun="NavSetWaypointHere(WP_HOVER)"/>
+      <stay wp="HOVER"/>
+    </block>
+    
+    
+    <block name="Go back">
+      <call fun="nav_set_heading_towards_waypoint(WP_HOME)"/>
+      <call fun="position_waypoint(WP_CENTER, 2.0)"/>
+      <call fun="position_waypoint(WP_GOAL, 20)"/>
+      <call fun="NavSetWaypointHere(WP_HOVER)"/>
+      <exception cond="block_time > 1" deroute="START"/>
+      <stay wp="HOVER"/>
+    </block>
+    
+    <block name = "Initialize">
+        
+        <call fun="position_waypoint(WP_CENTER, 2.0)"/>
+        <call fun="position_waypoint(WP_GOAL, 20)"/>
+        <exception cond="block_time > 1" deroute="START"/>
+        
+    </block>
+    
+    <block name="START">
+        <!--
+      <exception cond="block_time > 0.1" deroute="Loop"/>
+      <exception cond="!InsideCyberZoo(WaypointX(WP_CENTER), WaypointY(WP_CENTER))" deroute="Go back"/>
+      <call fun="nav_set_heading_towards_waypoint(WP_GOAL)"/>
+      <call fun="set_working_waypoint(WP_GOAL)"/>
+      <call fun="is_safe(WP_HOVER)"/>
+      <call fun="position_waypoint(WP_GOAL, 20)"/>
+      <call fun="position_waypoint(WP_CENTER, 2.0)"/>
+        -->
+        
+        
+      <exception cond="is_safe(WP_HOVER, WP_GOAL, WP_CENTER, block_time)" deroute="Loop"/>
+      <exception cond="!InsideCyberZoo(WaypointX(WP_CENTER), WaypointY(WP_CENTER))" deroute="Go back"/>      
+      
+      <go approaching_time="0" from="HOVER" wp="GOAL" hmode="route"/>
+      
+    </block>
+    
+    <block name="Loop">
+      <exception cond="1" deroute="START"/>
+    </block>
+    
+    
+    
+    <block key="l" name="Land here" strip_button="Land Here" strip_icon="land-right.png">
+      <call fun="NavSetWaypointHere(WP_LAND)"/>
+    </block>
+    <block name="Land">
+      <go wp="LAND"/>
+    </block>
+    <block name="Flare">
+      <exception cond="NavDetectGround()" deroute="Holding point"/>
+      <exception cond="!nav_is_in_flight()" deroute="Landed"/>
+      <call fun="NavStartDetectGround()"/>
+      <stay climb="nav_descend_vspeed" vmode="climb" wp="LAND"/>
+    </block>
+    <block name="Landed">
+      <call fun="NavKillThrottle()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+    <block name="Start ground calibration">
+      <call fun="start_ground_color_calibration()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+    <block name="Pick ground color">
+      <call fun="calibrate_ground_color()"/>
+      <attitude pitch="0" roll="0" throttle="0" until="FALSE" vmode="throttle"/>
+    </block>
+  </blocks>
+</flight_plan>
