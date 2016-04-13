@@ -1,1 +1,1 @@
-start.py
+/home/davide/paparazzi/start.py

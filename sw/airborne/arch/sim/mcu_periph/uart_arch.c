@@ -1,1 +1,1 @@
-../../linux/mcu_periph/uart_arch.c
+/home/davide/paparazzi/sw/airborne/arch/linux/mcu_periph/uart_arch.c

@@ -862,7 +862,7 @@
   <message name="COLORFILTER" id="107">
     <field name="color_count" type="int32"/>
   </message>
-
+  
 
   <!--108 is free -->
 
@@ -2168,13 +2168,8 @@
 
   <message name="2016_AVOIDER" id = "251">
       
-        <field name = "state"                 type = "uint8"/>   
-        <field name = "detected_obstacles"    type = "uint8"/>
-        <field name = "obstacle_internal"     type = "uint8"/>
-        <field name = "obstacle_external"     type = "uint8"/> 
-	<field name = "ground_y"              type = "double"/>
-        <field name = "ground_u"              type = "double"/>
-        <field name = "ground_v"              type = "double"/>
+        <field name = "bitmask"               type = "uint8[]"/>   
+        <field name = "obstacle_ahead"        type = "uint8"/> 
         
   </message>
 

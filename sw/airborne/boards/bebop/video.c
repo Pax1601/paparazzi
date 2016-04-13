@@ -272,14 +272,6 @@ void mt9v117_init(void)
 
 int mt9f002_i2c_port;
 
-void mt9f002_open(void);
-void mt9f002_close(void);
-void mt9f002_set_address(uint8_t address);
-void mt9f002_write_reg8(uint16_t reg, uint8_t value);
-void mt9f002_write_reg16(uint16_t reg, uint16_t value);
-uint8_t mt9f002_read_reg8(uint16_t reg);
-uint16_t mt9f002_read_reg16(uint16_t reg);
-
 void mt9f002_open(void)
 {
   mt9f002_i2c_port = open("/dev/i2c-0", O_RDWR);
@@ -492,11 +484,11 @@ void mt9f002_init(void)
   mt9f002_write_reg16(MT9F002_RED_GAIN, 19583);
   mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 19583);
   mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 19583);
-  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_GLOBAL, 10);
-  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_GREENR, 10);
-  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_RED, 10);
-  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_BLUE, 14);
-  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_GREENB, 10);
+  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_GLOBAL, 1);
+  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_GREENR, 1);
+  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_RED, 1);
+  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_BLUE, 1);
+  mt9f002_write_reg16(MT9F002_ANALOG_GAIN_CODE_GREENB, 1);
   mt9f002_write_reg16(MT9F002_CALIB_GREEN1_ASC1, 4228);
   mt9f002_write_reg16(MT9F002_CALIB_BLUE_ASC1, 4224);
   mt9f002_write_reg16(MT9F002_CALIB_RED_ASC1, 4224);

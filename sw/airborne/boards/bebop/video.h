@@ -24,10 +24,22 @@
  * Initialization of the video specific parts of the Bebop
  */
 
+#include <stddef.h>
+#include <inttypes.h>
+
 #ifndef BOARDS_BEBOP_VIDEO_H
 #define BOARDS_BEBOP_VIDEO_H
 
 void mt9v117_init(void);
 void mt9f002_init(void);
+
+extern void mt9f002_open(void);
+extern void mt9f002_close(void);
+extern void mt9f002_set_address(uint8_t address);
+extern void mt9f002_write_reg8(uint16_t reg, uint8_t value);
+extern void mt9f002_write_reg16(uint16_t reg, uint16_t value);
+extern uint8_t mt9f002_read_reg8(uint16_t reg);
+extern uint16_t mt9f002_read_reg16(uint16_t reg);
+
 
 #endif /* BOARDS_BEBOP_VIDEO_H */
