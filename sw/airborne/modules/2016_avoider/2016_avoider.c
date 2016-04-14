@@ -1,8 +1,15 @@
 /***********************************************************************
+ * 2016 Autonomous flight of M.A.V. course @ TU Delft university       *
+ * Group 8 code                                                        *
+ * Hielke Krijnen Davide Passoni                                       *
+ * Simon Spronk Jacco Zwanepol                                         *
+************************************************************************/
+
+/***********************************************************************
  *                            DEFINITIONS                              *
  **********************************************************************/
 
-// Main
+/* INCLUDES */
 #include "modules/2016_avoider/2016_avoider.h"
 #include "generated/airframe.h"
 #include "subsystems/gps.h"
@@ -19,11 +26,12 @@
 #endif
 
 /* COMPILATION TIME DEFINES */
-#define THETA_OFF 		-0.43         // angle of which the front camera is pointing down
-#define CALIB_SQUARE_DIM	10             // dimension of the calibrating area square, in pixels
-#define OBSTACLE_THR            3
+#define THETA_OFF 		-0.43           // angle of which the front camera is pointing down
+#define CALIB_SQUARE_DIM	10              // dimension of the calibrating area square, in pixels
+#define OBSTACLE_THR            3               // obstacle threshold. If more than OBSTACLE_THR pixels are detected as NOT GROUND
+                                                // an obstacle is detected.
 
-
+/* OBSTACLE BITMASK VALUES */
 #define OBST_RIGHT              4
 #define OBST_LEFT               1
 #define OBST_CENTER             2
@@ -32,15 +40,18 @@
 #define OBST_LEFT_RIGHT         5
 #define OBST_ALL                7
 
-#define ANGLE_HARD              0.2
-#define ANGLE_SOFT              0.1
 
-#define SPEED_FREE              1.0
-#define SPEED_OBST_AHEAD        0.4
-#define SPEED_TURN_SOFT         0.3
-#define SPEED_TURN_HARD         0.1
+/* SPEED AND TURNS DEFINITIONS */
+#define ANGLE_HARD              0.2             // radiants
+#define ANGLE_SOFT              0.1             // radiants
+
+#define SPEED_FREE              1.0             // m/s
+#define SPEED_OBST_AHEAD        0.4             // m/s
+#define SPEED_TURN_SOFT         0.3             // m/s
+#define SPEED_TURN_HARD         0.1             // m/s
 
 /* DEFINES FOR SETTINGS VALUES DEFINED IN THE AIRFRAME'S XML FILE*/
+/* GROUND FILTHER WIDTHS */
 #ifndef Y_FILTER_WIDTH
 #define Y_FILTER_WIDTH          10
 #endif
@@ -53,7 +64,7 @@
 #define V_FILTER_WIDTH          10
 #endif
 
-
+/* GROUND COLOR */
 #ifndef Y_FILTER
 #define Y_FILTER                225
 #endif
@@ -66,6 +77,7 @@
 #define V_FILTER                119
 #endif
 
+/* CAMERA GAINS */
 #ifndef R_GAIN
 #define R_GAIN                  5
 #endif
@@ -82,30 +94,39 @@
 #define T_GAIN                  5
 #endif
 
-
-uint8_t r_gain;
-uint8_t r_gain_old;
-
-uint8_t g_gain;
-uint8_t g_gain_old;
-
-uint8_t b_gain;
-uint8_t b_gain_old;
-
-uint8_t t_gain;
-uint8_t t_gain_old;
-
-double control_points_positions_X[4] = {-0.8, -0.5, 0.5, 0.8};
-double control_points_positions_Y[4] = {0, 1.25, 1.25, 0};
-
-double safety_points_positions_X[4] = {-0.6, -0.4, 0.4, 0.6};
-double safety_points_positions_Y[4] = {2.0, 3.0, 3.0, 2.0};
-
-float last_time = 0;
-
 /***********************************************************************
  *                             VARIABLES                               *
  **********************************************************************/
+
+/*  
+ *                               ^ Y
+ *                               |
+ *                               | 
+ *                       1 ______|______ 2
+ *                        /      |      \
+ *                       /       |       \
+ *                      /        |        \
+ *                     /         |         \
+ *                    /          |          \
+ *                   /           |           \
+ *                  /            |            \
+ *                 /             |             \
+ *              0 /              |              \ 3
+ *                               ---------------------->  X
+ * 
+ */
+
+/* CONTROL AND SAFETY POINTS DEFINITION */
+// Control points are used to turn the drone 
+double control_points_positions_X[4] = {-0.8, -0.5, 0.5, 0.8};
+double control_points_positions_Y[4] = {0, 1.25, 1.25, 0};
+
+// Safety points are used to choose the velocity of the drone 
+double safety_points_positions_X[4] = {-0.6, -0.4, 0.4, 0.6};
+double safety_points_positions_Y[4] = {2.0, 3.0, 3.0, 2.0};
+
+// Last time variable used to disable the HOVER waypoint positioning 
+float last_time = 0;
 
 // Points for drawing lines
 struct point_t point1;
@@ -119,7 +140,7 @@ double v_width;
 // Stucture holding the pixels located on the corner lines
 struct pixels_array pixels_array_border;
 
-// Pointer to an index element that hold the amount of pixels actually used in pixels_array_border. This
+// Pointer to an index element that holds the amount of pixels actually used in pixels_array_border. This
 // way no dynamic memory allocation is required.
 uint32_t *pixels_index;
 
@@ -142,34 +163,40 @@ double ground_y;
 double ground_u;
 double ground_v;
 
-uint8_t bitmask = 0;
-uint8_t obstacle_ahead = 0;
+// Camera gains
+uint8_t r_gain;
+uint8_t r_gain_old;
 
-uint8_t working_waypoint; 
+uint8_t g_gain;
+uint8_t g_gain_old;
+
+uint8_t b_gain;
+uint8_t b_gain_old;
+
+uint8_t t_gain;
+uint8_t t_gain_old;
+
+// Output bitmask, used to chose the direction of the turn.
+uint8_t bitmask = 0;
+
+// TRUE if an obstacle is sensed by the "safety" points. If FALSE, the drone flies at maximum speed.
+uint8_t obstacle_ahead = 0;
 
 // Ground calibration flag
 bool calibrating_ground = FALSE;
+
 
 /***********************************************************************
  *                             FUNCTIONS                               *
  **********************************************************************/
 
-bool_t draw_control_lines(struct image_t* img);
-void compute_position_on_camera(double point_X, double point_Y, double *temp_point, double sin_heading, double cos_heading, double sin_pitch, double cos_pitch, double sin_roll, double cos_roll);
-bool_t is_obstacle(double y, double u, double v);
-uint8_t turn_waypoint(uint8_t waypoint, float distanceMeters, float offset);
-
-uint8_t set_working_waypoint(uint8_t waypoint){
-    working_waypoint = waypoint;
-    return FALSE;
-}
-
+/* Positions a given waypoint distanceMeters in front of the drone, along the current navigation heading */
 uint8_t position_waypoint(uint8_t waypoint, float distanceMeters){
                     
 	  struct EnuCoor_i new_coor;
 	  struct EnuCoor_i *pos = stateGetPositionEnu_i(); // Get your current position
           
-	  // Calculate the sine and cosine of the heading the drone is keeping
+	  // Calculate the sine and cosine of the navigation heading
 	  float sin_heading = sinf(ANGLE_FLOAT_OF_BFP(nav_heading));
 	  float cos_heading = cosf(ANGLE_FLOAT_OF_BFP(nav_heading));
 
@@ -184,22 +211,14 @@ uint8_t position_waypoint(uint8_t waypoint, float distanceMeters){
           return FALSE;
 }
 
+/* Positions a given waypoint distanceMeters in front of the drone, along the current attitude heading, plus an offset in radians */
 uint8_t turn_waypoint(uint8_t waypoint, float distanceMeters, float offset){
     
         struct EnuCoor_i new_coor;
         struct EnuCoor_i *pos = stateGetPositionEnu_i(); // Get your current position
         struct FloatEulers *att = stateGetNedToBodyEulers_f(); 
-
-        // Calculate the sine and cosine of the heading the drone is keeping
         
-        /*
-        float sin_heading = sinf(ANGLE_FLOAT_OF_BFP(nav_heading) + offset);
-        float cos_heading = cosf(ANGLE_FLOAT_OF_BFP(nav_heading) + offset);
-        */
-        
-        //offset = 0;
-        
-        
+        // Calculate the sine and cosine of the attitude heading, plus the offset
         float sin_heading = sinf(att->psi + offset);
         float cos_heading = cosf(att->psi + offset);
             
@@ -215,6 +234,9 @@ uint8_t turn_waypoint(uint8_t waypoint, float distanceMeters, float offset){
         return FALSE;
 }
 
+/* Draw the control and safety lines, and extract the values of the image pixels to check for obstacles */
+/* NOTE: - points in X-Y coordinates are referred to the real world. Positions are expressed in meters, relative to the drone. See graph above for axis definition.
+ *       - points in x-y coordinates are referred to the camera. Points are expressed in pixels, and express the position of a pixel in the image. */
 bool_t draw_control_lines(struct image_t* img){
     
         // Drone attitude
@@ -225,63 +247,74 @@ bool_t draw_control_lines(struct image_t* img){
         float sin_pitch = -sinf(att->theta + THETA_OFF);
         float cos_pitch = cosf(att->theta + THETA_OFF);
         
-        
         float sin_roll = -sinf(att->phi);
         float cos_roll = cosf(att->phi);
         
+        // Temporary points to store computation results
         double temp_point[2];
         
-        double active_points_x[4];
-        double active_points_y[4];
         
+        // Control points positions on image
+        double control_points_x[4];
+        double control_points_y[4];
+        
+        // Safety points positions on image
         double safety_points_x[4];
         double safety_points_y[4];
              
-            
+        // Compute position of real world points on the camera.    
 	for(uint8_t i = 0; i < 4; i++){
                 compute_position_on_camera(-control_points_positions_X[i] * 256, -control_points_positions_Y[i] * 256, temp_point, 1, 0, sin_pitch, cos_pitch, sin_roll, cos_roll);
-                active_points_x[i] = temp_point[0]; 
-                active_points_y[i] = temp_point[1]; 
+                control_points_x[i] = temp_point[0]; 
+                control_points_y[i] = temp_point[1]; 
 
                 compute_position_on_camera(-safety_points_positions_X[i] * 256, -safety_points_positions_Y[i] * 256, temp_point, 1, 0, sin_pitch, cos_pitch, sin_roll, cos_roll);
                 safety_points_x[i] = temp_point[0]; 
                 safety_points_y[i] = temp_point[1]; 
-        }
+        } 
         
+        // Vector of NOT GROUND points in the three control segments.
         uint32_t obstacle_count[3] = {0, 0, 0};
         
+        
         for(uint8_t i = 0; i < 3; i++){
-		point1.x = active_points_x[i];
-		point1.y = active_points_y[i];
-		point2.x = active_points_x[i + 1];
-		point2.y = active_points_y[i + 1];
+		point1.x = control_points_x[i];
+		point1.y = control_points_y[i];
+		point2.x = control_points_x[i + 1];
+		point2.y = control_points_y[i + 1];
                 
+                // Extract the image points that lay on the line connecting 2 control points and store it in the pixels_array_border vector. The number of extracted points is variable
+                // and it is stored in the value pointed by pixels_index.
                 *pixels_index = 0;
 		if (point1.x > 0 && point1.x < 272 && point1.y > 0 && point1.y < 272 && point2.x > 0 && point2.x < 272 && point2.y > 0 && point2.y < 272){
 			image_extract_points_from_line(img, &point1, &point2, &pixels_array_border, pixels_index);	
 		}
 		
+		// Search for obstacles in the extracted points. NOTE, pixels_array_border uses 4 bytes per pixel couple, as specified in the YUV422 format. Only one of the couple of
+		// pixels is used to find the obstacles.
 		for (uint32_t j = 0; j < *pixels_index / 4; j++){
-                    
                     if (is_obstacle(*(pixels_array_border.pixels + j * 4 + 1), *(pixels_array_border.pixels + j * 4), *(pixels_array_border.pixels + j * 4 + 2))){
                          obstacle_count[i]++;
                     }
                 }		
 	}
 	
+	// Reset the obstacles bitmask to 0.
 	bitmask = 0;
         
+        // Set the bistmask value.
         if (obstacle_count[0] > OBSTACLE_THR){
-            bitmask |= 1;
+            bitmask |= OBST_LEFT;
         }
         
         if (obstacle_count[1] > OBSTACLE_THR){
-            bitmask |= 2;
+            bitmask |= OBST_CENTER;
         }
         if (obstacle_count[2] > OBSTACLE_THR){
-            bitmask |= 4;
+            bitmask |= OBST_RIGHT;
         }
 
+        // Repeat the same procedure for the safety points.
         uint32_t safety_obstacle_count[3] = {0, 0, 0};
         
         for(uint8_t i = 0; i < 3; i++){
@@ -290,6 +323,8 @@ bool_t draw_control_lines(struct image_t* img){
 		point2.x = safety_points_x[i + 1];
 		point2.y = safety_points_y[i + 1];
                 
+                // Extract the image points that lay on the line connecting 2 control points and store it in the pixels_array_border vector. The number of extracted points is variable
+                // and it is stored in the value pointed by pixels_index.
                 *pixels_index = 0;
 		if (point1.x > 0 && point1.x < 272 && point1.y > 0 && point1.y < 272 && point2.x > 0 && point2.x < 272 && point2.y > 0 && point2.y < 272){
 			image_extract_points_from_line(img, &point1, &point2, &pixels_array_border, pixels_index);	
@@ -297,32 +332,38 @@ bool_t draw_control_lines(struct image_t* img){
 		
 		for (uint32_t j = 0; j < *pixels_index / 4; j++){
                     
+                    // Search for obstacles in the extracted points. NOTE, pixels_array_border uses 4 bytes per pixel couple, as specified in the YUV422 format. Only one of the couple of
+                    // pixels is used to find the obstacles.
                     if (is_obstacle(*(pixels_array_border.pixels + j * 4 + 1), *(pixels_array_border.pixels + j * 4), *(pixels_array_border.pixels + j * 4 + 2))){
                          safety_obstacle_count[i]++;
                     }
                 }
 	}
 	
+	// This time we don't set the bitmask, we simply look if an obstacle is sensed by any of the 3 sectors of the safety line. If it is, we set the obstacle_ahead
+	// variable to decrease the speed of the drone.
 	if(safety_obstacle_count[0] > OBSTACLE_THR || safety_obstacle_count[1] > OBSTACLE_THR || safety_obstacle_count[2] > OBSTACLE_THR){
-            
             obstacle_ahead = 1;
-
         } else {
-         
             obstacle_ahead = 0;
-            
         }
         
+        // Gaphics are enabled only if the video stream is enabled too.
         #if VIDEO_STREAM
         
+        // Check if we are not calibrating the ground color.
         if (!calibrating_ground){
+            
+            // Apply the color filter to the entire image. Draw the ground green, while keep obstacles of their original color. This is used during testing to check
+            // for the correct behaviour of the system.
             image_yuv422_colorfilt(img, img, (ground_y - y_width > 0) ? (uint8_t) (ground_y - y_width) : 0, (ground_y + y_width < 255) ?  (uint8_t)(ground_y + y_width) : 255, (ground_u - u_width > 0) ? (uint8_t) (ground_u - u_width) : 0, (ground_u + u_width < 255) ?  (uint8_t)(ground_u + u_width) : 255, (ground_v - v_width > 0) ? (uint8_t) (ground_v - v_width) : 0, (ground_v + v_width < 255) ?  (uint8_t)(ground_v + v_width) : 255);
-        
+            
+            // Draw the control and safety lines on the image.
             for(uint8_t i = 0; i < 3; i++){
-                    point1.x = active_points_x[i];
-                    point1.y = active_points_y[i];
-                    point2.x = active_points_x[i + 1];
-                    point2.y = active_points_y[i + 1];
+                    point1.x = control_points_x[i];
+                    point1.y = control_points_y[i];
+                    point2.x = control_points_x[i + 1];
+                    point2.y = control_points_y[i + 1];
                     
                     if (point1.x > 0 && point1.x < 272 && point1.y > 0 && point1.y < 272 && point2.x > 0 && point2.x < 272 && point2.y > 0 && point2.y < 272){
                             image_draw_line_color(img, &point1, &point2, 255, 0, 148);	
@@ -348,53 +389,67 @@ bool_t draw_control_lines(struct image_t* img){
 	
 }
 
+// Function called by the autopilot. The return value of the function is always FALSE because all the obstacle avoidance manoeuvres are commanded here, and it is not 
+// required to "stop" the autopilot.
 bool_t is_safe(uint8_t waypoint_hover, uint8_t waypoint_goal, uint8_t waypoint_center, float time){
-            
+    
+    // The flight speed is set in a "cascade" manner, for the highest to the lowest value. Lower values are set if the associated checks are TRUE. The first set 
+    // value is the maximum flight speed.
     double speed_to_set = SPEED_FREE;
     
+    // If there is an obstacle ahead, slow down.
     if (obstacle_ahead){
         speed_to_set = SPEED_OBST_AHEAD;
     }
             
+    /* Switch construct used to decide the required avoidance manoeuvre. The bitmask is used as control variable.
+     * Each case is made of:
+     *      - the GOAL waypoint is turned of the required angle.
+     *      - the speed is set to the appropriate value.
+     * 
+     * Control is applied in this way:
+     *      - if only the left or right sectors detect an obstacles, only a small turn is required. The ANGLE_SOFT 
+     *        variable is used to turn the drone. The velocity is slightly decreased;
+     *      - if both the center and one of the later sectors detect and obstacle, a tighter turn is required. The 
+     *        ANGLE_HARD is used. The velocity is decreased more;
+     *      - if both the left and right sectors sense an obstacle, the drone behaves as on the point above, but 
+     *        the turn direction is hard-coded;
+     *      - if ALL the sectors sense an obstacle, a very hard turn is commanded. Again, the turn direction is 
+     *        hard-coded;
+     */    
+    
     switch (bitmask){
             case OBST_LEFT:
-                printf("Turn right.\n");
                 turn_waypoint(waypoint_goal, 20, ANGLE_SOFT);
                 speed_to_set = SPEED_TURN_SOFT;
                 break;
                 
             case OBST_RIGHT:
-                printf("Turn left.\n");
                 turn_waypoint(waypoint_goal, 20, -ANGLE_SOFT);
                 speed_to_set = SPEED_TURN_SOFT;
                 break;
                 
             case OBST_CENTER_LEFT:
-                printf("Turn hard right.\n");
                 turn_waypoint(waypoint_goal, 20, ANGLE_HARD);
                 speed_to_set = SPEED_TURN_HARD;
                 break;
                 
             case OBST_CENTER_RIGHT:
-                printf("Turn hard left.\n");
                 turn_waypoint(waypoint_goal, 20, -ANGLE_HARD);
                 speed_to_set = SPEED_TURN_HARD;
                 break;
                 
             case OBST_CENTER:
-                printf("Go back.\n");
                 turn_waypoint(waypoint_goal, 20, ANGLE_HARD);
                 speed_to_set = SPEED_TURN_HARD;
                 break;
                 
             case OBST_LEFT_RIGHT:
-                printf("Going through.\n");
                 turn_waypoint(waypoint_goal, 20,  ANGLE_HARD);
                 speed_to_set = SPEED_TURN_HARD;
                 break;
                 
             case OBST_ALL:
-                printf("Go back!!!.\n");
                 turn_waypoint(waypoint_goal, 20, 8 * ANGLE_HARD);
                 speed_to_set = SPEED_TURN_HARD;
                 break;
@@ -404,22 +459,28 @@ bool_t is_safe(uint8_t waypoint_hover, uint8_t waypoint_goal, uint8_t waypoint_c
                 break;
         }
         
+        // We are at the end of the speed "cascade", we se the maximum speed value for the autopilot.
         guidance_h_SetMaxSpeed(speed_to_set);
         
+        // The HOVER waypoint is set at a maxumum frequency of 1Hz, but only if we are not manoeuvring to avoid an obstacle.
         if (bitmask == 0 && time - last_time > 1.0){
             last_time = time;
             NavSetWaypointHere(waypoint_hover);
         }
         
+        // The last_time variable is not updated during obstacle avoiding. This causes the fact that, as soon as the obstacle is cleared,
+        // the HOVE waypoint is immidiately positioned.
         if (bitmask != 0){
             last_time = time;
         }
         
+        // Position the CENTER waypoint in front of the drone to remain inside the CyberZoo.
         position_waypoint(waypoint_center, 2.0);
         
         return FALSE;
 }
 
+// Check if a pixel is ground or not by applying the YUV filter.
 bool_t is_obstacle(double y, double u, double v){
 
 	if (y < ground_y - y_width || y > ground_y + y_width || u < ground_u - u_width || u > ground_u + u_width || v < ground_v - v_width || v > ground_v + v_width) {
@@ -430,23 +491,29 @@ bool_t is_obstacle(double y, double u, double v){
 
 }
 
+// Calibrate the ground color. A small square is drawn in the center of the image. The user points the drone in such a way that the square 
+// contains only ground pixels. 
 bool_t compute_calibration_color(struct image_t* img){
 
+        // Only run the if calibrating_ground flag is TRUE. Such flag is set by the user in the GCS via the flightplan.
 	if (calibrating_ground){
 
+                // Border of the calibration box.
 		uint16_t calibration_box_x[5] = {136 + CALIB_SQUARE_DIM / 2, 136 + CALIB_SQUARE_DIM / 2, 136 - CALIB_SQUARE_DIM / 2, 136 - CALIB_SQUARE_DIM / 2, 136 + CALIB_SQUARE_DIM / 2}; 
 		uint16_t calibration_box_y[5] = {136 - CALIB_SQUARE_DIM / 2, 136 + CALIB_SQUARE_DIM / 2, 136 + CALIB_SQUARE_DIM / 2, 136 - CALIB_SQUARE_DIM / 2, 136 - CALIB_SQUARE_DIM / 2}; 
-		 
+		
+                
 		uint8_t *img_buf = (uint8_t *)img->buf;
 		uint8_t pixel_width = (img->type == IMAGE_YUV422) ? 2 : 1;
 	
 		uint32_t index = 0;
 
+                // Reset to 0 the mean values for the ground color.
 		ground_y_mean = 0;
 		ground_u_mean = 0;
 		ground_v_mean = 0;
 
-		/* draw the line  UYVY */
+                // Scan all the points in the calibration box, and add them to the mean values.
 		for (uint8_t row = calibration_box_y[3]; row < calibration_box_y[3] + CALIB_SQUARE_DIM; row += 1) {
 			for (uint8_t column = calibration_box_x[3]; column < calibration_box_x[3] + CALIB_SQUARE_DIM; column += 2) {
 
@@ -463,12 +530,20 @@ bool_t compute_calibration_color(struct image_t* img){
 			}
 		}
 
+		// Finalize the mean values by dividing by the number of pixels in the square.
 		ground_y_mean = ground_y_mean / (CALIB_SQUARE_DIM * CALIB_SQUARE_DIM);
 		ground_u_mean = ground_u_mean / (CALIB_SQUARE_DIM * CALIB_SQUARE_DIM / 2);
 		ground_v_mean = ground_v_mean / (CALIB_SQUARE_DIM * CALIB_SQUARE_DIM / 2);
 
+                // Print on screen for debug
 		printf("%f, %f, %f\n", ground_y_mean, ground_u_mean, ground_v_mean);
 				
+                
+                // If we are videostreaming, draw the calibration box and apply the color filter using the mean values computed. This way 
+                // the user can immediately see the effects of the new ground color.
+                
+                #if VIDEOSTREAM
+                
 		for (uint8_t i = 0; i < 4; i++){
 			point1.x = calibration_box_x[i];
 			point1.y = calibration_box_y[i];
@@ -478,12 +553,15 @@ bool_t compute_calibration_color(struct image_t* img){
 		}
 		
                 image_yuv422_colorfilt(img, img, (ground_y_mean - y_width > 0) ? (uint8_t) (ground_y_mean - y_width) : 0, (ground_y_mean + y_width < 255) ?  (uint8_t)(ground_y_mean + y_width) : 255, (ground_u_mean - u_width > 0) ? (uint8_t) (ground_u_mean - u_width) : 0, (ground_u_mean + u_width < 255) ?  (uint8_t)(ground_u_mean + u_width) : 255, (ground_v_mean - v_width > 0) ? (uint8_t) (ground_v_mean - v_width) : 0, (ground_v_mean + v_width < 255) ?  (uint8_t)(ground_v_mean + v_width) : 255);
+                
+                #endif
 	}
 	
 	return FALSE;
 }
 
-
+// Apply the inverse camera calibration function to obtain the image position of a real world point. Real world points are specified with X and Y values on the ground.
+// The code is specific for points on the ground, but can be extended for points in every X-Y-Z position.
 void compute_position_on_camera(double point_X, double point_Y, double *temp_point, double sin_heading, double cos_heading, double sin_pitch, double cos_pitch, double sin_roll, double cos_roll){
     
     double rel_position_x = point_X;
@@ -509,24 +587,21 @@ void compute_position_on_camera(double point_X, double point_Y, double *temp_poi
     
 }
 
+// Send telemetry values to the user for debugging and operation control.
 static void send_telemetry(struct transport_tx *trans, struct link_device *dev){
     
     uint8_t bitmask_vector[3];
-    
     uint8_t k;
-    
     int c;
         
+    // Write the bitmask in a 3 values array.
     for (c = 2; c >= 0; c--){
-        
         k = bitmask >> c;
-
         if (k & 1)
             bitmask_vector[c] = 1;
         else
             bitmask_vector[c] = 0;
     }
-    
     pprz_msg_send_2016_AVOIDER(trans, dev, AC_ID, 3, bitmask_vector, &obstacle_ahead);
 }
 
@@ -546,6 +621,7 @@ void init() {
         cv_add(draw_control_lines);
 	cv_add(compute_calibration_color);
 
+        // Apply the values specified by the user in the XML file.
 	y_width = Y_FILTER_WIDTH;
 	u_width = U_FILTER_WIDTH;
 	v_width = V_FILTER_WIDTH;
@@ -566,6 +642,7 @@ void init() {
         t_gain = T_GAIN;
         t_gain_old = 0;
         
+        // Register the telemetry function.
         #if PERIODIC_TELEMETRY
             register_periodic_telemetry(DefaultPeriodic, PPRZ_MSG_ID_2016_AVOIDER, send_telemetry);
         #endif
@@ -577,146 +654,26 @@ void periodic() {
 	
         struct EnuCoor_i *pos = stateGetPositionEnu_i(); // Get your current position
 
+        // Set the position of the drone
 	drone_X = pos->x;
         drone_Y = pos->y;
         drone_Z = pos->z;
-        //drone_Z = 256;
 
-        if (r_gain != r_gain_old){
-            r_gain_old = r_gain;
-            
-            switch(r_gain){
-                case 1:
-                    mt9f002_write_reg16(MT9F002_RED_GAIN, 5128);
-                    break;
-                    
-                case 2:
-                    mt9f002_write_reg16(MT9F002_RED_GAIN, 6239);
-                    break;
-                
-                case 3:
-                    mt9f002_write_reg16(MT9F002_RED_GAIN, 7295);
-                    break;
-                    
-                case 4:
-                    mt9f002_write_reg16(MT9F002_RED_GAIN, 11391);
-                    break;
-                    
-                case 5:
-                    mt9f002_write_reg16(MT9F002_RED_GAIN, 19583);
-                    break;
-                    
-                default:
-                    
-                    break;
-            }
-        }
+        // Check if the user has changed the camera gains via the GCS.
+        set_camera_gains();
         
-        if (g_gain != g_gain_old){
-            g_gain_old = g_gain;
-            
-            switch(g_gain){
-                case 1:
-                    mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 5128);
-                    mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 5128);
-                    break;
-                    
-                case 2:
-                    mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 6239);
-                    mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 6239);
-                    break;
-                
-                case 3:
-                    mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 7295);
-                    mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 7295);
-                    break;
-                    
-                case 4:
-                    mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 11391);
-                    mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 11391);
-                    break;
-                    
-                case 5:
-                    mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 19583);
-                    mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 19583);
-                    break;
-                    
-                default:
-                    
-                    break;
-            }
-        }
-        
-        if (b_gain != b_gain_old){
-            b_gain_old = b_gain;
-            
-            switch(b_gain){
-                case 1:
-                    mt9f002_write_reg16(MT9F002_BLUE_GAIN, 5128);
-                    break;
-                    
-                case 2:
-                    mt9f002_write_reg16(MT9F002_BLUE_GAIN, 6239);
-                    break;
-                
-                case 3:
-                    mt9f002_write_reg16(MT9F002_BLUE_GAIN, 7295);
-                    break;
-                    
-                case 4:
-                    mt9f002_write_reg16(MT9F002_BLUE_GAIN, 11391);
-                    break;
-                    
-                case 5:
-                    mt9f002_write_reg16(MT9F002_BLUE_GAIN, 19583);
-                    break;
-                    
-                default:
-                    
-                    break;
-            }
-        }
-        
-        if (t_gain != t_gain_old){
-            t_gain_old = t_gain;
-            
-            switch(t_gain){
-                case 1:
-                    mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 5128);
-                    break;
-                    
-                case 2:
-                    mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 6239);
-                    break;
-                
-                case 3:
-                    mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 7295);
-                    break;
-                    
-                case 4:
-                    mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 11391);
-                    break;
-                    
-                case 5:
-                    mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 19583);
-                    break;
-                    
-                default:
-                    
-                    break;
-            }
-        }       
 }
 
+
+// Called by the user from the flightplan to start the ground calibration
 uint8_t start_ground_color_calibration()
 {
 	printf("Starting ground color calibration...\n");
-	
 	calibrating_ground = TRUE;
-
 	return FALSE;
 }
 
+// When the user is satisfied with the values, this function is called to save the mean values
 uint8_t calibrate_ground_color()
 {
 	printf("Ground color calibrated.\n");
@@ -729,6 +686,137 @@ uint8_t calibrate_ground_color()
 
 	return FALSE;
 }
+
+// Set the camera gains according to the camera datasheet
+uint8_t set_camera_gains(){
+     if (r_gain != r_gain_old){
+        r_gain_old = r_gain;
+        
+        switch(r_gain){
+            case 1:
+                mt9f002_write_reg16(MT9F002_RED_GAIN, 5128);
+                break;
+                
+            case 2:
+                mt9f002_write_reg16(MT9F002_RED_GAIN, 6239);
+                break;
+            
+            case 3:
+                mt9f002_write_reg16(MT9F002_RED_GAIN, 7295);
+                break;
+                
+            case 4:
+                mt9f002_write_reg16(MT9F002_RED_GAIN, 11391);
+                break;
+                
+            case 5:
+                mt9f002_write_reg16(MT9F002_RED_GAIN, 19583);
+                break;
+                
+            default:
+                
+                break;
+        }
+    }
+        
+    if (g_gain != g_gain_old){
+        g_gain_old = g_gain;
+        
+        switch(g_gain){
+            case 1:
+                mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 5128);
+                mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 5128);
+                break;
+                
+            case 2:
+                mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 6239);
+                mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 6239);
+                break;
+            
+            case 3:
+                mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 7295);
+                mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 7295);
+                break;
+                
+            case 4:
+                mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 11391);
+                mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 11391);
+                break;
+                
+            case 5:
+                mt9f002_write_reg16(MT9F002_GREEN1_GAIN, 19583);
+                mt9f002_write_reg16(MT9F002_GREEN2_GAIN, 19583);
+                break;
+                
+            default:
+                
+                break;
+        }
+    }
+    
+    if (b_gain != b_gain_old){
+        b_gain_old = b_gain;
+        
+        switch(b_gain){
+            case 1:
+                mt9f002_write_reg16(MT9F002_BLUE_GAIN, 5128);
+                break;
+                
+            case 2:
+                mt9f002_write_reg16(MT9F002_BLUE_GAIN, 6239);
+                break;
+            
+            case 3:
+                mt9f002_write_reg16(MT9F002_BLUE_GAIN, 7295);
+                break;
+                
+            case 4:
+                mt9f002_write_reg16(MT9F002_BLUE_GAIN, 11391);
+                break;
+                
+            case 5:
+                mt9f002_write_reg16(MT9F002_BLUE_GAIN, 19583);
+                break;
+                
+            default:
+                
+                break;
+        }
+    }
+    
+    if (t_gain != t_gain_old){
+        t_gain_old = t_gain;
+        
+        switch(t_gain){
+            case 1:
+                mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 5128);
+                break;
+                
+            case 2:
+                mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 6239);
+                break;
+            
+            case 3:
+                mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 7295);
+                break;
+                
+            case 4:
+                mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 11391);
+                break;
+                
+            case 5:
+                mt9f002_write_reg16(MT9F002_GLOBAL_GAIN, 19583);
+                break;
+                
+            default:
+                
+                break;
+        }
+    }       
+}
+
+
+
 
 
 
