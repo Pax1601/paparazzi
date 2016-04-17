@@ -2163,8 +2163,7 @@
       <field name="yaw_c"  type="float"/>
   </message>
 
-  <!-- 251 is free -->
-  <!-- 252 is free -->
+  
 
   <message name="2016_AVOIDER" id = "251">
       
@@ -2172,6 +2171,8 @@
         <field name = "obstacle_ahead"        type = "uint8"/> 
         
   </message>
+
+  <!-- 252 is free -->
 
   <message name="I2C_ERRORS" id="253">
     <field name="wd_reset_cnt"                type="uint16"/>

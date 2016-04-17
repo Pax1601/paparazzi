@@ -40,9 +40,7 @@
     </sector>
   </sectors>
   <exceptions>
-     <!--
     <exception cond="datalink_time > 2 && !(nav_block == IndexOfBlock('Land')) && !(nav_block == IndexOfBlock('Flare')) && !(nav_block == IndexOfBlock('Landed'))" deroute="Land here"/>
-      -->
     <exception cond="electrical.bat_low && !(nav_block == IndexOfBlock('Land')) && !(nav_block == IndexOfBlock('Flare')) && !(nav_block == IndexOfBlock('Landed'))" deroute="Land here"/>
     <exception cond="electrical.bat_critical && !(nav_block == IndexOfBlock('Land')) && !(nav_block == IndexOfBlock('Flare')) && !(nav_block == IndexOfBlock('Landed'))" deroute="Land here"/>
   </exceptions>
@@ -74,6 +72,18 @@
     </block>
     
     
+    
+    <!-- NAVIGATION ROUTINE -->
+    <!-- For a description of the flight plan, please refer to the main source file
+    in /sw/airborne/modules/2016_avoider/2016_avoider.x -->
+    
+    
+    <block name = "Initialize">
+        <call fun="position_waypoint(WP_CENTER, 2.0)"/>
+        <call fun="position_waypoint(WP_GOAL, 20)"/>
+        <exception cond="block_time > 1" deroute="START"/>
+    </block>
+    
     <block name="Go back">
       <call fun="nav_set_heading_towards_waypoint(WP_HOME)"/>
       <call fun="position_waypoint(WP_CENTER, 2.0)"/>
@@ -83,36 +93,19 @@
       <stay wp="HOVER"/>
     </block>
     
-    <block name = "Initialize">
-        
-        <call fun="position_waypoint(WP_CENTER, 2.0)"/>
-        <call fun="position_waypoint(WP_GOAL, 20)"/>
-        <exception cond="block_time > 1" deroute="START"/>
-        
-    </block>
-    
     <block name="START">
-        <!--
-      <exception cond="block_time > 0.1" deroute="Loop"/>
-      <exception cond="!InsideCyberZoo(WaypointX(WP_CENTER), WaypointY(WP_CENTER))" deroute="Go back"/>
-      <call fun="nav_set_heading_towards_waypoint(WP_GOAL)"/>
-      <call fun="set_working_waypoint(WP_GOAL)"/>
-      <call fun="is_safe(WP_HOVER)"/>
-      <call fun="position_waypoint(WP_GOAL, 20)"/>
-      <call fun="position_waypoint(WP_CENTER, 2.0)"/>
-        -->
-        
-        
-      <exception cond="is_safe(WP_HOVER, WP_GOAL, WP_CENTER, block_time)" deroute="Loop"/>
+      <exception cond="is_safe(WP_HOVER, WP_GOAL, WP_CENTER, block_time)" deroute="Loop"/> 
       <exception cond="!InsideCyberZoo(WaypointX(WP_CENTER), WaypointY(WP_CENTER))" deroute="Go back"/>      
-      
       <go approaching_time="0" from="HOVER" wp="GOAL" hmode="route"/>
-      
     </block>
     
-    <block name="Loop">
+    <block name="Loop"> 
       <exception cond="1" deroute="START"/>
     </block>
+
+    
+    
+    <!-- END OF NAVIGATION ROUTINE -->
     
     
     

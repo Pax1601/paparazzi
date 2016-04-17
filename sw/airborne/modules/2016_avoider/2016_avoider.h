@@ -33,7 +33,7 @@
 #include <std.h>
 #include <inttypes.h>
 
-// World2Cam
+// World2Cam by OCamLib
 #include "lib/world2cam/rt_nonfinite.h"
 #include "lib/world2cam/world2cam.h"
 #include "lib/world2cam/world2cam_terminate.h"

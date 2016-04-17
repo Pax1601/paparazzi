@@ -27,7 +27,7 @@
       <message name="SURVEY"                 period="2.5"/>
       <message name="OPTIC_FLOW_EST"         period="0.25"/>
       <message name="VECTORNAV_INFO"         period="0.5"/>
-      <message name="2016_AVOIDER"           period="0.5"/>
+      <message name="2016_AVOIDER"           period="0.5"/> <!-- 2016_avoider telemtry -->
     </mode>
 
     <mode name="ppm">

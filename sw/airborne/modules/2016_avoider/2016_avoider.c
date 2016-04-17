@@ -6,6 +6,106 @@
 ************************************************************************/
 
 /***********************************************************************
+ *                 GENERAL DESCRIPTION OF THE CODE                     *
+ *                                                                     *
+ * All the proposed code is identified by the name "2016_avoider".     *
+ * The submitted code comprises:                                       *
+ *      - this file and the related header;                            *
+ *      - a C implementation of the Matlab code available with the     *
+ *        OCamLib free toolbox, obtained with the Matlab C Coder,      *
+ *        located in ./lib;                                            *
+ *      - the flight plan in /conf/flight_plans/TUDELFT/...            *
+ *        .../2016_avoider.xml                                         *
+ *      - the conf file in /conf/airframes/TUDELFT/2016_avoider.xml;   *
+ *      - the conf file in /conf/TUDELFT/tudelft_course2016_conf.xml;  *
+ *      - the conf file in /conf/modules/2016_avoider.xml;             *
+ *      - the conf file in /conf/telemetry/2016_avoider.xml;           *
+ *      - the edited messages file in /conf/messages.xml (entry 251);  *
+ *      - a modified file in /sw/airborne/modules/computer_vision/...  *
+ *        .../lib/vision/image.c;                                      *
+ *                                                                     *
+ * A general description of the code is hereby provided.               *
+ *                                                                     *
+ *                           FLIGHT PLAN                               *
+ *                                                                     *
+ * In the flight plan, 4 blocks are added:                             *
+ *                                                                     *
+ * Initialize: is the block that the user must manually call to start  *
+ * the autonomous flight. It sets up CENTER (2m in front of the drone) *
+ * and GOAL (20m in front of the drone) waypoints.                     *
+ *                                                                     *
+ * START: is the block where the navigation and obstacle avoidance     *
+ * takes place. Two "exception" conditions are used. The first is a    *
+ * dummy exception condition, because the called fuction returns       *
+ * always FALSE. It is used to call the navigation function at high    *
+ * frequency. This is required to allow the periodic call to the       *
+ * function and at the same time to use the paparazzi navigation       *
+ * capability. The called function is is_safe(). All the steering      *
+ * is computed inside is_safe().                                       *
+ * The second exception is used to check if the CENTER waypoint is     *
+ * outside of the CyberZoo. If it is, the "Go back" block is called.   *
+ * In the block itself, the drone is flown from the HOVER waypoint     *
+ * to the GOAL waypoint in "route" mode. The GOAL waypoint is always   *
+ * placed 20m from the drone, to allow proper speed control. If an     *
+ * obstacle is detected in the is_safe() function, the GOAL waypoint   *
+ * is moved to the side, according to the required turn direction.     *
+ * This allows the steering of the drone. The HOVER waypoint is updated*
+ * at a 1Hz frequency inside is_safe(), and is located at the drone's  *
+ * position, unless the drone is turning away from an obstacle. This   *
+ * decreases the lateral drift.                                        *
+ *                                                                     *
+ * Go back: when the drone gets close to the CyberZoo border, it's     *
+ * turned back towards the HOME waypoint. The system waits 1 second    *
+ * before the START block is called again.                             *
+ *                                                                     *
+ *                                                                     *
+ *                   FLOW GRAPH REPRESENTATION                         *
+ *                                                                     *
+ *                                                                     *
+ *                           User input                                *
+ *                               |                                     *
+ *                               |                                     *
+ *                               v                                     *
+ *                           Initialize                                *
+ *                               |                                     *
+ *                               |                                     *
+ *                               v                                     *
+ *                             START <------                           *
+ *                               |         |                           *
+ *   WP_CENTER outisde CyberZoo  |         |                           *
+ *                               v         |                           *
+ *                            Go back-------                           *
+ *                                                                     *
+ * The drone enters an infinite loop that is stopped either by the user*
+ * or by the code when the battery is empty.                           *
+ *                                                                     *
+ *                                                                     *
+ * MODULE CODE DESCRIPTION                                             *
+ *                                                                     *
+ * When the module is loaded, the init() function is called, which     *
+ * sets up the variables and allocates the required memory. The        *
+ * periodic() function is called at a fixed frequency to update the    *
+ * position of the drone.                                              *
+ * Two filters are added to the computer vision periodic task. One is  *
+ * used for obstacle detection, the other for ground color calibration.*
+ * The obstacle detection filter is called draw_control_lines. It is   *
+ * called periodically and it is used to extract the image points along* 
+ * the control lines, using the compute_position_on_camera() function  *
+ * to project the points on the camera using a corrected pinhole model.* 
+ * To do so, the OCamLib world2cam() function is used.                 *
+ * Inside draw_control_lines() image points are then searched for      *
+ * obstacles. The bitmask variable is set accordingly. The bitmask is  *
+ * a global variables accessible from the is_safe() function.          *
+ * The autopilot "communicates" with the module via the is_safe()      *
+ * function, which is called periodically. The bitmask is inspected,   *
+ * and if a turn is required, the turn_waypoint() function is called to*
+ * move the GOAL waypoint in the correct position.                     *
+ * Inside is_safe(), the outer control line is checked too. If an      * 
+ * obstacle is detected, the speed of the drone is decreased.          *
+ **********************************************************************/
+ 
+
+/***********************************************************************
  *                            DEFINITIONS                              *
  **********************************************************************/
 
@@ -812,7 +912,9 @@ uint8_t set_camera_gains(){
                 
                 break;
         }
-    }       
+    }      
+    
+    return FALSE;
 }
 
 
