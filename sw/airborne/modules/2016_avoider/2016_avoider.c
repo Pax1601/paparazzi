@@ -142,8 +142,8 @@
 
 
 /* SPEED AND TURNS DEFINITIONS */
-#define ANGLE_HARD              0.2             // radiants
-#define ANGLE_SOFT              0.1             // radiants
+#define ANGLE_HARD              0.2             // radians
+#define ANGLE_SOFT              0.1             // radians
 
 #define SPEED_FREE              1.0             // m/s
 #define SPEED_OBST_AHEAD        0.4             // m/s
@@ -402,7 +402,7 @@ bool_t draw_control_lines(struct image_t* img){
 	// Reset the obstacles bitmask to 0.
 	bitmask = 0;
         
-        // Set the bistmask value.
+        // Set the bitmask value.
         if (obstacle_count[0] > OBSTACLE_THR){
             bitmask |= OBST_LEFT;
         }
